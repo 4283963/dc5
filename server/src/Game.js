@@ -1,3 +1,4 @@
+const Entity = require('./entities/Entity');
 const Player = require('./entities/Player');
 const Bullet = require('./entities/Bullet');
 const Monster = require('./entities/Monster');
@@ -6,8 +7,11 @@ const {
   WORLD_WIDTH,
   WORLD_HEIGHT,
   MONSTER,
+  BULLET,
   MESSAGE_TYPES,
 } = require('../../shared/constants');
+
+const MAX_SUBSTEP_DISTANCE = 2;
 
 class Game {
   constructor() {
@@ -52,21 +56,29 @@ class Game {
   }
 
   update(dt) {
-    for (const player of this.players.values()) {
-      if (!player.dead) {
-        player.update(dt);
+    const maxSpeed = BULLET.SPEED + MONSTER.SPEED;
+    const minDtForSubstep = MAX_SUBSTEP_DISTANCE / maxSpeed;
+    const substepCount = Math.max(1, Math.ceil(dt / minDtForSubstep));
+    const subDt = dt / substepCount;
+
+    for (let s = 0; s < substepCount; s++) {
+      for (const player of this.players.values()) {
+        if (!player.dead) {
+          player.update(subDt);
+        }
       }
+
+      for (const bullet of this.bullets.values()) {
+        bullet.update(subDt);
+      }
+
+      for (const monster of this.monsters.values()) {
+        monster.update(subDt, this.players);
+      }
+
+      this._checkCollisions();
     }
 
-    for (const bullet of this.bullets.values()) {
-      bullet.update(dt);
-    }
-
-    for (const monster of this.monsters.values()) {
-      monster.update(dt, this.players);
-    }
-
-    this._checkCollisions();
     this._spawnMonsters();
     this._cleanup();
   }
@@ -78,7 +90,7 @@ class Game {
       for (const monster of this.monsters.values()) {
         if (monster.dead) continue;
 
-        if (bullet.collidesWith(monster)) {
+        if (Entity.sweepCollides(bullet, monster)) {
           monster.takeDamage(bullet.damage);
           bullet.dead = true;
 
@@ -99,7 +111,7 @@ class Game {
       for (const player of this.players.values()) {
         if (player.dead) continue;
 
-        if (monster.collidesWith(player)) {
+        if (Entity.sweepCollides(monster, player)) {
           player.takeDamage(10);
           monster.dead = true;
         }
