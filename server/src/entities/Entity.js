@@ -1,3 +1,5 @@
+const { STATUS_CONFIG, STATUS_EFFECTS } = require('../../../shared/constants');
+
 class Entity {
   constructor(x, y, size) {
     this.id = Math.random().toString(36).slice(2, 9);
@@ -9,6 +11,8 @@ class Entity {
     this.vx = 0;
     this.vy = 0;
     this.dead = false;
+    this.statuses = new Map();
+    this._burnAccumulator = 0;
   }
 
   get left() {
@@ -127,6 +131,88 @@ class Entity {
     const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
 
     return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+  }
+
+  addStatus(statusType) {
+    const config = STATUS_CONFIG[statusType];
+    if (!config) return false;
+
+    const existing = this.statuses.get(statusType);
+    const now = Date.now();
+
+    if (existing) {
+      existing.endTime = Math.max(existing.endTime, now + config.duration);
+    } else {
+      this.statuses.set(statusType, {
+        type: statusType,
+        startTime: now,
+        endTime: now + config.duration,
+      });
+    }
+
+    return true;
+  }
+
+  removeStatus(statusType) {
+    this.statuses.delete(statusType);
+  }
+
+  hasStatus(statusType) {
+    return this.statuses.has(statusType);
+  }
+
+  get speedMultiplier() {
+    let mult = 1;
+    for (const status of this.statuses.values()) {
+      const config = STATUS_CONFIG[status.type];
+      if (config && config.speedMultiplier !== undefined) {
+        mult *= config.speedMultiplier;
+      }
+    }
+    return mult;
+  }
+
+  updateStatuses(dt) {
+    const now = Date.now();
+    const expired = [];
+
+    for (const [type, status] of this.statuses) {
+      if (now >= status.endTime) {
+        expired.push(type);
+      }
+    }
+
+    for (const type of expired) {
+      this.statuses.delete(type);
+    }
+
+    if (this.hasStatus(STATUS_EFFECTS.BURNING)) {
+      const config = STATUS_CONFIG.burning;
+      this._burnAccumulator += dt * 1000;
+
+      while (this._burnAccumulator >= config.tickInterval) {
+        this._burnAccumulator -= config.tickInterval;
+        const damagePerTick = config.damagePerSecond * (config.tickInterval / 1000);
+        if (this.takeDamage) {
+          this.takeDamage(damagePerTick);
+        }
+      }
+    } else {
+      this._burnAccumulator = 0;
+    }
+  }
+
+  getActiveStatuses() {
+    const result = [];
+    const now = Date.now();
+    for (const status of this.statuses.values()) {
+      result.push({
+        type: status.type,
+        remaining: Math.max(0, status.endTime - now),
+        duration: STATUS_CONFIG[status.type]?.duration || 0,
+      });
+    }
+    return result;
   }
 }
 

@@ -33,10 +33,12 @@ class Player extends Entity {
       dy /= len;
     }
 
-    this.vx = dx * this.speed;
-    this.vy = dy * this.speed;
+    const speed = this.speed * this.speedMultiplier;
+    this.vx = dx * speed;
+    this.vy = dy * speed;
 
     super.update(dt);
+    this.updateStatuses(dt);
 
     this.x = Math.max(this.size / 2, Math.min(WORLD_WIDTH - this.size / 2, this.x));
     this.y = Math.max(this.size / 2, Math.min(WORLD_HEIGHT - this.size / 2, this.y));
@@ -61,6 +63,7 @@ class Player extends Entity {
       color: this.color,
       name: this.name,
       score: this.score,
+      statuses: this.getActiveStatuses(),
     };
   }
 }

@@ -36,6 +36,29 @@
       MAX_COUNT: 20,
     },
 
+    STATUS_EFFECTS: {
+      FROZEN: 'frozen',
+      BURNING: 'burning',
+    },
+
+    STATUS_CONFIG: {
+      frozen: {
+        duration: 3000,
+        speedMultiplier: 0.5,
+        color: 0x60a5fa,
+      },
+      burning: {
+        duration: 5000,
+        damagePerSecond: 10,
+        tickInterval: 500,
+        color: 0xf97316,
+        particleCount: 3,
+        particleSpeed: 80,
+      },
+    },
+
+    BULLET_STATUS_CHANCE: 0.25,
+
     MESSAGE_TYPES: {
       PLAYER_JOIN: 'player_join',
       PLAYER_LEAVE: 'player_leave',

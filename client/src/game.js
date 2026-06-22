@@ -55,8 +55,11 @@ function initPixi() {
   createBackground();
 
   app.ticker.add(() => {
+    const dt = app.ticker.deltaTime / 60;
     updateCamera();
     sendInputIfChanged();
+    updateMonsterParticles(dt);
+    updateMonsterStatusVisuals();
   });
 
   window.addEventListener('resize', onResize);
@@ -82,6 +85,84 @@ function createBackground() {
   graphics.drawRect(0, 0, CONSTANTS.WORLD_WIDTH, CONSTANTS.WORLD_HEIGHT);
 
   backgroundLayer.addChild(graphics);
+}
+
+function updateMonsterParticles(dt) {
+  for (const monster of monsters.values()) {
+    const hasBurning = monster.data.statuses && monster.data.statuses.some(s => s.type === 'burning');
+
+    if (hasBurning) {
+      monster._particleTimer += dt;
+      const emitInterval = 0.08;
+      while (monster._particleTimer >= emitInterval) {
+        monster._particleTimer -= emitInterval;
+        spawnBurnParticle(monster);
+      }
+    }
+
+    for (let i = monster.particles.length - 1; i >= 0; i--) {
+      const p = monster.particles[i];
+      p.life -= dt;
+      if (p.life <= 0) {
+        monster.particleContainer.removeChild(p.sprite);
+        monster.particles.splice(i, 1);
+        continue;
+      }
+      p.sprite.x += p.vx * dt;
+      p.sprite.y += p.vy * dt;
+      p.sprite.alpha = p.life / p.maxLife;
+      p.vy -= 40 * dt;
+    }
+  }
+}
+
+function spawnBurnParticle(monster) {
+  const size = 3 + Math.random() * 3;
+  const sprite = new PIXI.Graphics();
+  sprite.beginFill(0xf97316);
+  sprite.drawCircle(0, 0, size);
+  sprite.endFill();
+  sprite.x = (Math.random() - 0.5) * monster.data.size * 0.6;
+  sprite.y = -monster.data.size / 2;
+  monster.particleContainer.addChild(sprite);
+
+  const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.8;
+  const speed = 30 + Math.random() * 40;
+
+  monster.particles.push({
+    sprite,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    life: 0.6,
+    maxLife: 0.6,
+  });
+}
+
+function updateMonsterStatusVisuals() {
+  for (const monster of monsters.values()) {
+    const statuses = monster.data.statuses || [];
+    const hasFrozen = statuses.some(s => s.type === 'frozen');
+    const hasBurning = statuses.some(s => s.type === 'burning');
+
+    monster.statusOverlay.clear();
+
+    if (hasFrozen) {
+      const s = monster.data.size;
+      monster.statusOverlay.lineStyle(2, 0x60a5fa, 0.9);
+      monster.statusOverlay.beginFill(0x60a5fa, 0.35);
+      monster.statusOverlay.moveTo(0, -s / 2);
+      monster.statusOverlay.lineTo(s / 2, s / 2);
+      monster.statusOverlay.lineTo(-s / 2, s / 2);
+      monster.statusOverlay.closePath();
+      monster.statusOverlay.endFill();
+    }
+
+    if (hasBurning) {
+      const pulse = 0.5 + Math.sin(Date.now() / 80) * 0.5;
+      monster.statusOverlay.lineStyle(3, 0xf97316, pulse * 0.8);
+      monster.statusOverlay.drawCircle(0, 0, monster.data.size / 2 + 5);
+    }
+  }
 }
 
 function updateCamera() {
@@ -195,10 +276,26 @@ function createMonsterSprite(monsterData) {
   hpBar.endFill();
   container.addChild(hpBar);
 
+  const statusOverlay = new PIXI.Graphics();
+  container.addChild(statusOverlay);
+
+  const particleContainer = new PIXI.Container();
+  container.addChild(particleContainer);
+
   container.x = monsterData.x;
   container.y = monsterData.y;
 
-  return { container, hpBar };
+  return {
+    container,
+    hpBar,
+    body,
+    statusOverlay,
+    particleContainer,
+    particles: [],
+    statuses: [],
+    _particleTimer: 0,
+    _baseColor: monsterData.color,
+  };
 }
 
 function updateGameState(state) {

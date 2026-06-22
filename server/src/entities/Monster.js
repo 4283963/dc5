@@ -31,12 +31,13 @@ class Monster extends Entity {
       const dy = nearestPlayer.y - this.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist > 0) {
-        this.vx = (dx / dist) * this.speed;
-        this.vy = (dy / dist) * this.speed;
+        this.vx = (dx / dist) * this.speed * this.speedMultiplier;
+        this.vy = (dy / dist) * this.speed * this.speedMultiplier;
       }
     }
 
     super.update(dt);
+    this.updateStatuses(dt);
 
     this.x = Math.max(this.size / 2, Math.min(WORLD_WIDTH - this.size / 2, this.x));
     this.y = Math.max(this.size / 2, Math.min(WORLD_HEIGHT - this.size / 2, this.y));
@@ -59,6 +60,7 @@ class Monster extends Entity {
       hp: this.hp,
       maxHp: this.maxHp,
       color: this.color,
+      statuses: this.getActiveStatuses(),
     };
   }
 }

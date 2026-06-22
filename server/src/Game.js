@@ -8,6 +8,8 @@ const {
   WORLD_HEIGHT,
   MONSTER,
   BULLET,
+  BULLET_STATUS_CHANCE,
+  STATUS_EFFECTS,
   MESSAGE_TYPES,
 } = require('../../shared/constants');
 
@@ -93,6 +95,12 @@ class Game {
         if (Entity.sweepCollides(bullet, monster)) {
           monster.takeDamage(bullet.damage);
           bullet.dead = true;
+
+          if (Math.random() < BULLET_STATUS_CHANCE) {
+            const statusTypes = Object.values(STATUS_EFFECTS);
+            const randomStatus = statusTypes[Math.floor(Math.random() * statusTypes.length)];
+            monster.addStatus(randomStatus);
+          }
 
           if (monster.dead) {
             const owner = this.players.get(bullet.ownerId);
